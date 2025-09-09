@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🐔 Chicken Shop — Customer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    input, button {
+      padding: 8px;
+      margin: 6px 0;
+      width: 100%;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .hidden {
+      display: none;
+    }
+    .menu-item {
+      border: 1px solid #ccc;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .menu-item button {
+      width: auto;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    #message {
+      text-align: center;
+      margin: 15px 0;
+      font-weight: bold;
+      color: green;
+    }
+    #error {
+      text-align: center;
+      margin: 15px 0;
+      font-weight: bold;
+      color: red;
+    }
+  </style>
+  <script>
+    // Base backend URL (change if needed)
+    const BASE_URL = 'http://localhost:5000';
+
+    // Logged in user info (username)
+    let loggedInUser = null;
+
+    // Menu items: you can expand later or fetch from backend
+    const menuItems = [
+      { id: 'grilled', name: 'Grilled Chicken', price: 250 },
+      { id: 'fried', name: 'Fried Chicken', price: 200 },
+      { id: 'biryani', name: 'Chicken Biryani', price: 300 }
+    ];
+
+    // Show/hide elements helper
+    function showElement(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function hideElement(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Clear messages
+    function clearMessages() {
+      document.getElementById('message').textContent = '';
+      document.getElementById('error').textContent = '';
+    }
+
+    // User Registration
+    async function registerUser() {
+      clearMessages();
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value.trim();
+
+      if (!username || !password) {
+        document.getElementById('error').textContent = 'Please enter username and password to register.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/register`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('message').textContent = 'Registration successful! Please login.';
+          // Clear registration inputs
+          document.getElementById('reg-username').value = '';
+          document.getElementById('reg-password').value = '';
+        } else {
+          document.getElementById('error').textContent = data.message || 'Registration failed.';
+        }
+      } catch (e) {
+        document.getElementById('error').textContent = 'Server error during registration.';
+      }
+    }
+
+    // User Login
+    async function loginUser() {
+      clearMessages();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+
+      if (!username || !password) {
+        document.getElementById('error').textContent = 'Please enter username and password to login.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          loggedInUser = username;
+          document.getElementById('message').textContent = `Welcome, ${username}!`;
+          // Hide login/register forms
+          hideElement('register-section');
+          hideElement('login-section');
+          showElement('menu-section');
+          showElement('logout-section');
+          populateMenu();
+          // Clear login inputs
+          document.getElementById('login-username').value = '';
+          document.getElementById('login-password').value = '';
+        } else {
+          document.getElementById('error').textContent = data.message || 'Login failed.';
+        }
+      } catch (e) {
+        document.getElementById('error').textContent = 'Server error during login.';
+      }
+    }
+
+    // Logout user
+    function logoutUser() {
+      loggedInUser = null;
+      clearMessages();
+      hideElement('menu-section');
+      hideElement('logout-section');
+      showElement('register-section');
+      showElement('login-section');
+    }
+
+    // Populate the menu items into the HTML
+    function populateMenu() {
+      const menuDiv = document.getElementById('menu-items');
+      menuDiv.innerHTML = '';
+      menuItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'menu-item';
+        div.innerHTML = `
+          <span>${item.name} - ₹${item.price}</span>
+          <button onclick="orderItem('${item.name}', ${item.price})">Order Now</button>
+        `;
+        menuDiv.appendChild(div);
+      });
+    }
+
+    // Place order for selected menu item
+    async function orderItem(itemName, price) {
+      clearMessages();
+
+      if (!loggedInUser) {
+        document.getElementById('error').textContent = 'Please login first to place an order.';
+        return;
+      }
+
+      // Ask for customer name and phone (simple prompt, can be improved to form)
+      const customerName = prompt('Please enter your name:', loggedInUser);
+      if (!customerName) {
+        document.getElementById('error').textContent = 'Order cancelled: name is required.';
+        return;
+      }
+      const phoneNumber = prompt('Please enter your phone number:');
+      if (!phoneNumber) {
+        document.getElementById('error').textContent = 'Order cancelled: phone number is required.';
+        return;
+      }
+
+      // Send order request to backend
+      try {
+        const res = await fetch(`${BASE_URL}/order`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ itemName, price, customerName, phoneNumber })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('message').textContent = `✅ Order placed: ${itemName} for ₹${price}`;
+        } else {
+          document.getElementById('error').textContent = data.message || 'Order failed.';
+        }
+      } catch (e) {
+        document.getElementById('error').textContent = 'Server error while placing order.';
+      }
+    }
+
+    // On page load, ensure correct sections visibility
+    window.onload = () => {
+      logoutUser(); // show login/register first
+    };
+  </script>
+</head>
+<body>
+  <h1>🐔 Chicken Shop — Customer</h1>
+
+  <div id="message"></div>
+  <div id="error"></div>
+
+  <!-- Registration Section -->
+  <section id="register-section">
+    <h2>Register</h2>
+    <input id="reg-username" type="email" placeholder="Enter email (username)" />
+    <input id="reg-password" type="password" placeholder="Enter password" />
+    <button onclick="registerUser()">Register</button>
+  </section>
+
+  <hr>
+
+  <!-- Login Section -->
+  <section id="login-section">
+    <h2>Login</h2>
+    <input id="login-username" type="email" placeholder="Enter email (username)" />
+    <input id="login-password" type="password" placeholder="Enter password" />
+    <button onclick="loginUser()">Login</button>
+  </section>
+
+  <!-- Menu Section (hidden initially) -->
+  <section id="menu-section" class="hidden">
+    <h2>🐔 Chicken Shop Menu</h2>
+    <div id="menu-items"></div>
+  </section>
+
+  <!-- Logout Button -->
+  <section id="logout-section" class="hidden" style="text-align:center; margin-top:20px;">
+    <button onclick="logoutUser()">Logout</button>
+  </section>
+</body>
+</html>
